@@ -1,0 +1,93 @@
+networks:
+  demo:
+    driver: bridge
+
+services:
+
+############################## OBSERVABILITY ###############################
+
+  aspire:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:8.1.0-amd64
+    container_name: aspire
+    restart: always
+    environment:
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: true
+    ports:
+      - 18888:18888 # Web UI
+      - 4317:18889 # grpc OTLP
+      - 4318:18890 # OTLP HTTP
+    networks:
+      - demo
+
+############################## DATABASES ###############################
+
+  postgres:
+    image: postgres:16.3-alpine3.20
+    container_name: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: demodb
+      POSTGRES_USER: demouser
+      POSTGRES_PASSWORD: a123456789
+    volumes:
+      - ./src/Postgres/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "demodb", "-U", "demouser"]
+      interval: 15s
+      timeout: 30s
+      retries: 5
+    networks:
+      - demo
+
+  mongo:
+    image: mongo:7.0.9
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./src/Mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - demo
+
+############################## DEMO SERVICES ###############################
+
+  api-users:
+    build:
+      context: .
+      dockerfile: ./src/Demo.Api.Users/Dockerfile
+    image: technobre/demo-api-users
+    container_name: api-users
+    restart: always
+    environment:
+      CONNECTIONSTRINGS__DEFAULT: mongodb://mongo:27017/Demo
+      OTEL_SERVICE_NAME: Api.Users
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire:18890
+    ports:
+      - 8088:8080
+    networks:
+      - demo
+    depends_on:
+      mongo:
+        condition: service_started
+
+  api-notifications:
+    build:
+      context: .
+      dockerfile: ./src/Demo.Api.Notifications/Dockerfile
+    image: technobre/demo-api-notifications
+    container_name: api-notifications
+    restart: always
+    environment:
+      CONNECTIONSTRINGS__POSTGRES: Server=postgres;Port=5432;Database=demodb;User Id=demouser;Password=a123456789;
+      USERSAPI: http://api-users:8080
+      OTEL_SERVICE_NAME: Api.Notifications
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire:18890
+    ports:
+      - 8089:8080
+    networks:
+      - demo
+    depends_on:
+      postgres:
+        condition: service_healthy

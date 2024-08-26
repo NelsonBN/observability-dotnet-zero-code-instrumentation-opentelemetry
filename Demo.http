@@ -1,0 +1,58 @@
+@UsersApiHost = http://localhost:8088/users
+@NotificationsApiHost = http://localhost:8089/notifications
+
+
+#######
+
+
+GET {{UsersApiHost}}
+
+###
+
+GET {{UsersApiHost}}/28111954-9422-4822-a40a-c912f9f297dd
+
+###
+
+POST {{UsersApiHost}}
+Content-Type: application/json
+
+{
+    "name": "Fake User",
+    "email": "fake@fake.fk",
+    "phone": "1234"
+}
+
+###
+
+PUT {{UsersApiHost}}/28111954-9422-4822-a40a-c912f9f297dd
+Content-Type: application/json
+
+{
+    "name": "Fake User Update",
+    "email": "fake@Update.fk",
+    "phone": "12341112"
+}
+
+###
+
+DELETE {{UsersApiHost}}/64c76e00-ce3c-4967-8e50-3d5a972a0cc7
+
+
+#######
+
+
+GET {{NotificationsApiHost}}
+
+###
+
+GET {{NotificationsApiHost}}/5f4dac16-5692-46b9-919b-9b4f3e0d0d91
+
+###
+
+POST {{NotificationsApiHost}}
+Content-Type: application/json
+
+{
+    "userId": "28111954-9422-4822-a40a-c912f9f297dd",
+    "message": "Hello World!"
+}
